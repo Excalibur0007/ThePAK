@@ -1,81 +1,68 @@
 #!/usr/bin/env bash
 
+# Source the banner script
 source etc/banner
-# Banner Add
+
+# Display the banner
 echo -e "executing: ${LIGHTGREEN}ThePAK${NOCOLOR}"
 echo "-----------------------"
 
-if [[ -d "output" ]]
-  then
-    echo ""
-  else
-    echo ""
-    mkdir output
-fi
+# Check if the 'output' directory exists, if not, create it
+[[ ! -d "output" ]] && mkdir output
 
-unpacking () {
-  qemu-i386 $PREFIX/share/quickbms/quickbms -Q etc/tools.bms $opt output
+# Function to unpack files
+unpacking() {
+  qemu-i386 "$PREFIX/share/quickbms/quickbms" -Q etc/tools.bms "$1" output
 }
 
-repacking () {
-  qemu-i386 $PREFIX/share/quickbms/quickbms -w -r -r etc/tools.bms $opt output
+# Function to repack files
+repacking() {
+  qemu-i386 "$PREFIX/share/quickbms/quickbms" -w -r -r etc/tools.bms "$1" output
 }
 
-function unpack {
-prompt="Please select a file to unpack:"
-options=( $(find *.pak) )
+# Function to prompt user for a file selection
+select_file() {
+  local prompt="$1"
+  local action="$2"
+  local options=($(find . -maxdepth 1 -name '*.pak' -printf '%f\n'))
 
-PS3="$prompt "
-select opt in "${options[@]}" "Quit" ; do 
-    if (( REPLY == 1 + ${#options[@]} )) ; then
-        exit
+  if [[ ${#options[@]} -eq 0 ]]; then
+    echo "No .pak files found in the current directory."
+    return 1
+  fi
 
-    elif (( REPLY > 0 && REPLY <= ${#options[@]} )) ; then
-        echo  "You picked $opt which is file $REPLY"
-         unpacking
-        break
+  PS3="$prompt "
+  select opt in "${options[@]}" "Quit"; do
+    if (( REPLY == 1 + ${#options[@]} )); then
+      exit
+
+    elif (( REPLY > 0 && REPLY <= ${#options[@]} )); then
+      echo "You picked $opt which is file $REPLY"
+      $action "$opt"
+      break
 
     else
-        echo "Invalid option. Try another one."
+      echo "Invalid option. Try another one."
     fi
-done
+  done
 }
 
-function repack {
-prompt="Please select a file to repack:"
-options=( $(find *.pak) )
-
-PS3="$prompt "
-select opt in "${options[@]}" "Quit" ; do 
-    if (( REPLY == 1 + ${#options[@]} )) ; then
-        exit
-
-    elif (( REPLY > 0 && REPLY <= ${#options[@]} )) ; then
-        echo  "You picked $opt which is file $REPLY"
-         repacking
-        break
-    else
-        echo "Invalid option. Try another one."
-    fi
-done
-}
-
+# Main menu
 PS3='Please enter your choice: '
 options=("Unpack" "Repack" "Quit")
-select opt in "${options[@]}"
-do
-    case $opt in
-        "Unpack")
-            unpack
-            break
-            ;;
-        "Repack")
-            repack
-            
-            ;;
-        "Quit")
-            break
-            ;;
-        *) echo "invalid option $REPLY";;
-    esac
-done 
+select opt in "${options[@]}"; do
+  case $opt in
+    "Unpack")
+      select_file "Please select a file to unpack:" unpacking
+      ;;
+    "Repack")
+      select_file "Please select a file to repack:" repacking
+      ;;
+    "Quit")
+      break
+      ;;
+    *)
+      echo "Invalid option $REPLY"
+      ;;
+  esac
+done
